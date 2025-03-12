@@ -2,9 +2,6 @@ import cv2
 import time
 import sys
 
-# The address of UDP stream from RPI
-#stream_url = "v4l2src ! video/x-raw, width=640, height=480, framerate=15/1 ! videoconvert ! x264enc tune=zerolatency bitrate=2000 speed-preset=superfast ! rtph264pay ! udpsink host=192.168.1.17 port=5000"
-
 # Gstreamer pipeline to receive video from camera
 cap_pipeline = ("v4l2src device=/dev/video0 ! video/x-raw, width=640, height=480, framerate=15/1 ! videoconvert ! appsink")
 
