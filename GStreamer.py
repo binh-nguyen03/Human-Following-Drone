@@ -2,6 +2,7 @@ import cv2
 import time
 import sys
 import threading
+import queue
 import numpy as np
 
 # Gstreamer pipeline to receive video from camera
@@ -13,9 +14,9 @@ gst_pipeline = (
 	"rtph264pay ! udpsink host=192.168.1.17 port=5000"
 )
 
-frame_lock: threading.Lock = threading.Lock()
+frame_queue: queue = queue.Queue(maxsize=1)
 """
-Lock used to avoid data conflict when both threads access the 'frame' variable.
+Used to store the latest frame
 """
 
 frame: np.ndarray | None = None
@@ -66,11 +67,18 @@ def image_processing() -> None:
 			# Process image (e.g., drawing bounding box)
 			cv2.rectangle(temp_frame, (150, 100), (500, 400), (0, 255, 0), 2)
 			
-			# Store processed frame safely
-			with frame_lock:
-				frame = temp_frame.copy()
+			# Insert new frame into queue (eliminate old one if queue's full)
+			if not frame_queue.full():
+				frame_queue.put(temp_frame)
+			else:
+				frame_queue.get()  # Delete old frame
+				frame_queue.put(temp_frame)
+
+			# cv2.waitKey(1) # To optimize OpenCV, make image processing more stable
+
 	except Exception as e:
 		print(f"Unexpected error in image processing: {e}")
+
 	finally: # Make sure resource is always freed	
 		cap.release()
 		print("Image processing thread stopped")
@@ -94,19 +102,27 @@ def stream_video() -> None:
 
 		error_count = 0
 		while running.is_set():
-			with frame_lock:
-				if frame is not None and isinstance(frame, np.ndarray):
-					try:
-						out.write(frame)
-					except cv2.error as e:
-						error_count += 1
-						print(f"GStreamer error: {e}")
-						if error_count >= 10:
-							print("Too many GStreamer errors, stopping stream_video thread.")
-							break
-				time.sleep(0.01) # reduce CPU load
+			try:
+				frame = frame_queue.get_nowait() # Get the latest frame from queue
+				if frame is not None and isinstance(frame, np.ndarray): 
+					out.write(frame)
+
+			except queue.Empty:
+				continue
+				# Not print log, avoid spamming console
+
+			except cv2.error as e:
+				error_count += 1
+				print(f"GStreamer error: {e}")
+				if error_count >= 10:
+					print("Too many GStreamer errors, stopping stream_video thread.")
+					break
+
+			time.sleep(0.002) # reduce CPU load
+
 	except Exception as e:
 		print(f"Unexpected error in stream video: {e}")
+
 	finally: # Make sure resource is always freed
 		out.release() 
 		print("Streaming thread stopped")
@@ -129,4 +145,4 @@ if __name__ == '__main__':
 		time.sleep(0.5) # To make sure that threads actually stop
 		image_thread.join()
 		stream_thread.join()
-		print("Threads stopped, exiting program")
+		print("Threads stopped, exiting program...")
