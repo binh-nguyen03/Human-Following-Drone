@@ -1,2 +1,3 @@
-# Human-Following-Drone
-Quadcopter with Pixhawk 6C and Raspberry Pi model 4B for image processing
+# GStreamer
+
+Description: (for testing before make it together with image processing) Integrate video transmission platform (aka GStreamer) into python script which is interpretted
