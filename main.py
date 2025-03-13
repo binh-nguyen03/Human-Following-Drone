@@ -1,1 +1,4 @@
-# Quadcopter with Pixhawk 6C and Raspberry Pi model 4B
+# Human Following Drone
+
+if __name__ == '__main__':
+    print("Hello My Drone")
