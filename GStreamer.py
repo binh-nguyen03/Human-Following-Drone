@@ -11,7 +11,7 @@ cap_pipeline = ("v4l2src device=/dev/video0 ! video/x-raw, width=640, height=480
 # Gstreamer pipeline to send processed video via UDP
 gst_pipeline = (
 	"appsrc is-live=true ! videoconvert ! x264enc tune=zerolatency bitrate=2000 speed-preset=superfast ! "
-	"rtph264pay ! udpsink host=192.168.1.17 port=5000"
+	"rtph264pay ! udpsink host=192.168.1.101 port=5000"
 )
 
 frame_queue: queue = queue.Queue(maxsize=1)
@@ -65,7 +65,7 @@ def image_processing() -> None:
 				error_count = 0
 			
 			# Process image (e.g., drawing bounding box)
-			cv2.rectangle(temp_frame, (150, 100), (500, 400), (0, 255, 0), 2)
+			cv2.rectangle(temp_frame, (150, 100), (640, 480), (0, 255, 0), 2)
 			
 			# Insert new frame into queue (eliminate old one if queue's full)
 			if not frame_queue.full():
@@ -118,7 +118,7 @@ def stream_video() -> None:
 					print("Too many GStreamer errors, stopping stream_video thread.")
 					break
 
-			time.sleep(0.002) # reduce CPU load
+			time.sleep(0.1) # reduce CPU load
 
 	except Exception as e:
 		print(f"Unexpected error in stream video: {e}")
