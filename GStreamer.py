@@ -16,7 +16,7 @@ gst_pipeline = (
 
 frame_queue: queue = queue.Queue(maxsize=1)
 """
-Used to store the latest frame
+Used to store the latest frame with the maximum of only one frame (maxsize = 1)
 """
 
 frame: np.ndarray | None = None
