@@ -4,10 +4,7 @@ import numpy as np
 import time
 import os
 os.system('cls') 
-# def gamma_correction(image, gamma=1.1):
-#     inv_gamma = 1.0 / gamma
-#     table = np.array([((i / 255.0) ** inv_gamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
-#     return cv2.LUT(image, table)  # Áp dụng bảng tra cứu
+# Hog + SVM
 def gamma_correction(image, gamma):
     # Chuyển đổi ảnh về khoảng [0,1]
     norm_image = image / 255.0
@@ -16,8 +13,8 @@ def gamma_correction(image, gamma):
     # Chuyển về 0-255
     return (corrected_image * 255).astype(np.uint8)
 
-person_detected = False  # Trạng thái ban đầu: chưa thấy khuôn mặt
-last_detection_time = 0  # Lưu thời gian lần cuối cùng phát hiện khuôn mặt
+person_detected = False  # Trạng thái ban đầu: chưa thấy người
+last_detection_time = 0  # Lưu thời gian lần cuối cùng phát hiện người
 
 DELAY_TIME = 1  # Thời gian chờ trước khi thông báo tiếp (giây)
 
@@ -56,26 +53,28 @@ while True:
         break  # Thoát nếu không có dữ liệu từ camera
     
     # frame= cv2.GaussianBlur(frame, (5,5), sigmaX=1.0, sigmaY=1.0)  # Làm mịn Gaussian
-    frame1 = gamma_correction(frame, gamma=1)  # Điều chỉnh gamma
+    frame1 = gamma_correction(frame, gamma=1.5)  # Điều chỉnh gamma
     gray= cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)  # Chuyển sang ảnh xám
     # Tiền xử lý
     # Resize ảnh để giảm tải xử lý
     gray = cv2.resize(gray, (320, 240))
-    # Chuyển đổi sang kiểu float (giá trị từ 0 đến 1)
-    img = np.float32(gray) / 255.0
-    # Tính toán gradient theo hướng x và y
-    gx = cv2.Sobel(img, cv2.CV_32F, 1, 0, ksize=3)
-    gy = cv2.Sobel(img, cv2.CV_32F, 0, 1, ksize=3) 
-    # ksize là bộ lọc có kích thước mình chọn như 1 3 5 7 
-    # vd ksize = 1 là bộ lọc [-1 0 1]
-    # Tính độ lớn của gradient
-    gray= cv2.magnitude(gx, gy)
+    # # Chuyển đổi sang kiểu float (giá trị từ 0 đến 1)
+    # img = np.float32(gray) / 255.0
+    # # Tính toán gradient theo hướng x và y
+    # gx = cv2.Sobel(img, cv2.CV_32F, 1, 0, ksize=3)
+    # gy = cv2.Sobel(img, cv2.CV_32F, 0, 1, ksize=3) 
+    # # ksize là bộ lọc có kích thước mình chọn như 1 3 5 7 
+    # # vd ksize = 1 là bộ lọc [-1 0 1]
+    # # Tính độ lớn của gradient
+    # gray= cv2.magnitude(gx, gy)
 
-    # Chuẩn hóa về khoảng 0-255 để sử dụng HOG
-    gray= cv2.normalize(gray, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    # # Chuẩn hóa về khoảng 0-255 để sử dụng HOG
+    # gray= cv2.normalize(gray, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
     
+    # Dùng canny để detect biên 
+    I_canny = cv2.Canny(gray, 120, 250)
     # Phát hiện người bằng HOG + SVM
-    boxes, weights = hog.detectMultiScale(gray, winStride=(4, 4), padding=(8, 8), scale=1.02)
+    boxes, weights = hog.detectMultiScale(I_canny, winStride=(4, 4), padding=(8, 8), scale=1.02)
     #boxes: Danh sách các tọa độ của hộp giới hạn (bounding boxes) chứa người được phát hiện.
     # Đây là một danh sách gồm nhiều tuple (x, y, w, h), trong đó:
     # x, y: Tọa độ góc trên bên trái của hộp.
@@ -90,7 +89,7 @@ while True:
     print('boxes',boxes)
     print('weight',weights)
     
-    conf_threshold = 1.2 # Ngưỡng tin cậy (tùy chỉnh)
+    conf_threshold = 1.5 # Ngưỡng tin cậy (tùy chỉnh)
     filtered_persons = []
     for i in range(len(boxes)):
         if weights[i] > conf_threshold:
@@ -113,7 +112,7 @@ while True:
     for (x, y, w, h) in filtered_persons:
         cv2.rectangle(frame1, (x, y), (x + w, y + h), (0, 255, 0), 2)  
         
-
+    cv2.imshow("Canny", I_canny)
     cv2.imshow("Detected Persons", frame1)  # Hiển thị kết quả
     cv2.imshow("In put ch xu ly", frame) # hiển thị khi chưa qua xử lý
     
